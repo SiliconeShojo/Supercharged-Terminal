@@ -49,7 +49,6 @@ This repository transitions your standard Windows terminal into a professional d
 3. [⚙️ Profile Configuration](#-profile-configuration)
 4. [⚡ Command Dictionary](#-command-dictionary)
 5. [🎨 Themes & Customization](#-themes--customization)
-6. [🔧 Deep Troubleshooting](#-deep-troubleshooting)
 
 <br>
 
@@ -338,7 +337,7 @@ Here is a detailed breakdown of every custom command included in this profile.
 | Command | Usage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Explanation |
 | :--- | :--- | :--- |
 | **`mkcd`** | `mkcd <name>` | Creates a new folder and immediately moves you inside it. |
-| **`touch`** | `touch <name>` | Creates a new empty file (e.g., `touch index.js`). If the file already exists, it updates the timestamp. |
+| **`touch`** | `touch <name>` | Creates a new empty file (e.g., `touch index.js`, `touch .gitignore`). If the file already exists, it updates the timestamp. |
 | **`ll`** | `ll` | Enhanced `ls`. Lists all files in the directory with color-coded icons. |
 | **`..`** | `..` | Moves up one folder level. (Also `...` for 2 levels, `....` for 3). |
 
