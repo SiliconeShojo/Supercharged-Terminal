@@ -32,7 +32,7 @@ Searches for a text pattern within files, automatically excluding common develop
 > **Depth** refers to how many subfolder levels to search. A depth of `3` (default) means it searches the current folder plus three levels of subdirectories.
 
 ```powershell
-# Search for "TODO" in current directory (default depth 3)
+# Search for "TODO" (Recommended Args: <path> | -MaxDepth 5)
 fxt "TODO"
 
 # Search for "password" in a specific path
@@ -49,7 +49,7 @@ Calculates the total size of a directory by scanning its contents up to a specif
 > The default depth is `5`. This ensures fast calculation even in large projects by avoiding deep system or dependency folders.
 
 ```powershell
-# Check size of current directory
+# Check size (Recommended Args: -MaxDepth 10)
 dsize
 
 # Check size of node_modules
@@ -63,10 +63,16 @@ dsize . 10
 Unblocks files in the current folder, which is often required for scripts downloaded from the internet.
 
 ```powershell
-# Unblock files in current folder
+# Unblock files (Recommended Args: <path> | -Recurse | -MaxDepth 3)
 unblock
 
-# Recursively unblock everything in subfolders
+# Unblock a specific folder
+unblock ./downloads
+
+# Recursively unblock to a specific depth
+unblock -MaxDepth 2
+
+# Full recursion
 unblock -Recurse
 ```
 
@@ -83,23 +89,60 @@ Quick navigation to parent directories.
 
 ---
 
-## 🐙 Git Workflow
+### 💡 Pro Tip: Customizing Depth (fxt, dsize, unblock)
 
-### `gs`, `gpl`, `gd`, `gl`
-Shorthands for common Git operations with enhanced feedback.
+Utility commands like **`fxt`**, **`dsize`**, and **`unblock`** can be run in two ways depending on which settings you want to change.
+
+#### 🚀 Option A: The "Fast" Way (In Order)
+If you provide values in the correct order, you don't need to type the "dashed" names. PowerShell reads them from left to right.
 
 ```powershell
-# Git Status
-gs
+# fxt/unblock Order: <pattern/path> <path/depth> <depth>
+fxt "main" . 10       # Search current folder
+unblock ./downloads 2 # Unblock downloads folder (Depth 2)
+```
 
-# Git Pull (with feedback)
+#### 🎯 Option B: The "Precise" Way (Using Names)
+If you want to **skip** an argument (for example: search the current folder but change the depth), use the parameter name with a dash.
+
+```powershell
+# This skips the <path> and goes straight to depth
+fxt "main" -MaxDepth 5
+```
+
+---
+
+## 🐙 Git Workflow
+
+### `gst`, `gpl`, `gdf`, `glo`
+Shorthands for common Git operations. Running these without arguments will show curated popular flags.
+
+```powershell
+# Git Status (Recommended Args: -s -b)
+gst
+
+# Git Pull (Recommended Args: --rebase | --autostash)
 gpl
 
-# Git Diff
-gd
+# Git Diff (Recommended Args: --staged | --stat)
+gdf
 
-# Git Log (pretty graph with decorations)
-gl
+# Git Log (Recommended Args: --oneline --graph --decorate)
+glo
+```
+
+### `gco`
+Git Checkout shorthand.
+
+```powershell
+# Checkout a branch
+gco my-feature
+
+# Checkout and create new branch
+gco -b hotfix-123
+
+# Switch back to previous branch
+gco -
 ```
 
 ### `gup`
@@ -119,14 +162,17 @@ gnew https://github.com/user/my-new-repo.git
 ```
 
 ### `gcl`
-Clones a repository and automatically enters its directory. It accepts all standard `git clone` flags.
+Clones a repository and automatically enters its directory. It supports a "Jump In" feature that handles standard and custom folder naming.
 
 ```powershell
 # Standard clone and enter
 gcl https://github.com/user/repo.git
 
-# Clone with additional arguments
-gcl https://github.com/user/repo.git --depth 1 --branch main my-folder
+# Clone a specific branch with curated depth
+gcl https://github.com/user/repo.git -b main --depth 1
+
+# Clone into a custom folder
+gcl https://github.com/user/repo.git my-folder
 ```
 
 ### `grem`
@@ -164,8 +210,11 @@ myip
 Finds the source (file path or module) of a command.
 
 ```powershell
-# Find where python is located
+# Find where python is located (Recommended Args: -All)
 which python
+
+# See all sources if multiple exist
+which -All node
 ```
 
 ### `clh`

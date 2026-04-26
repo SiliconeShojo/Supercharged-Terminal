@@ -11,7 +11,7 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Advanced Performance Flags
-$env:POSH_GIT_STATUS_ASYNC = 1   # Don't hang on large repos
+$env:POSH_GIT_STATUS_ASYNC = 1
 $env:POSH_THEME_CACHING = 1     # Faster startup
 $env:POSH_THEMES_PATH = Join-Path $env:LOCALAPPDATA "Programs\oh-my-posh\themes"
 
@@ -120,8 +120,7 @@ function Set-TouchFile {
     if (Test-Path $Path) { 
         (Get-Item $Path).LastWriteTime = Get-Date
         Write-Info "Updated timestamp for existing file: $Path" 
-    } 
-    else { 
+    } else { 
         New-Item -ItemType File -Path $Path -Force | Out-Null
         Write-Success "New file created: $Path" 
     }
@@ -130,7 +129,8 @@ Set-Alias touch Set-TouchFile
 
 function Select-FileText {
     # Searches for a text pattern within files, excluding common development folders.
-    param([string]$Pattern, [string]$Path = ".", [int]$MaxDepth = 3)
+    param([Parameter(Mandatory)][string]$Pattern, [string]$Path = ".", [int]$MaxDepth = 3)
+    Write-Host "  $IconInfo Arguments: <path> | -MaxDepth 5" -ForegroundColor Cyan
     $Ignore = '\\(\.git|node_modules|\.next|bin|obj|dist|build|vendor|\.cache|\.venv|env|__pycache__)\\'
     Write-Action "Scanning files for '$Pattern' (Depth: $MaxDepth)..."
     $files = Get-ChildItem -Path $Path -Recurse -Depth $MaxDepth -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch $Ignore }
@@ -138,8 +138,7 @@ function Select-FileText {
     if ($results) { 
         $results | ForEach-Object { Write-Host "  $IconArrow $($_.FileName):$($_.LineNumber): $($_.Line.Trim())" -ForegroundColor Gray }
         Write-Success "Found $($results.Count) matches in $($files.Count) files."
-    }
-    else { 
+    } else { 
         Write-Alert "No matches found in $($files.Count) files scanned." 
     }
 }
@@ -148,6 +147,7 @@ Set-Alias fxt Select-FileText
 function Get-DirectorySize {
     # Calculates the total size of a directory.
     param([string]$Path = ".", [int]$MaxDepth = 5)
+    Write-Host "  $IconInfo Arguments: -MaxDepth 10" -ForegroundColor Cyan
     Write-Action "Calculating size for: $Path"
     try {
         $fullPath = (Resolve-Path $Path).Path
@@ -155,32 +155,32 @@ function Get-DirectorySize {
         if ($null -eq $size) { $size = 0 }
         $disp = if ($size -ge 1GB) { "{0:N2} GB" -f ($size / 1GB) } elseif ($size -ge 1MB) { "{0:N2} MB" -f ($size / 1MB) } else { "{0:N2} KB" -f ($size / 1KB) }
         Write-Success "Size of '$($fullPath.Split('\')[-1])': $disp"
+    } catch { 
+        Write-Error "Calculation failed." 
     }
-    catch { Write-Error "Calculation failed." }
 }
 Set-Alias dsize Get-DirectorySize
 
 function Unblock-FolderFiles {
-    # Unblocks files in the current folder, optionally recursing.
-    param([switch]$Recurse)
-    Write-Action "Unblocking files (Recurse: $Recurse)..."
-    if ($Recurse) { Get-ChildItem -File -Recurse | Unblock-File } else { Get-ChildItem -File | Unblock-File }
+    # Unblocks files in a folder, optionally recursing.
+    param([string]$Path = ".", [int]$MaxDepth, [switch]$Recurse)
+    Write-Host "  $IconInfo Arguments: <path> | -Recurse | -MaxDepth 2" -ForegroundColor Cyan
+    
+    $targetPath = if (Test-Path $Path) { (Resolve-Path $Path).Path } else { $Path }
+    
+    if ($MaxDepth -gt 0) {
+        Write-Action "Unblocking files in '$targetPath' (Depth: $MaxDepth)..."
+        Get-ChildItem -Path $targetPath -File -Recurse -Depth $MaxDepth | Unblock-File
+    } elseif ($Recurse) {
+        Write-Action "Unblocking files in '$targetPath' (Full Recursion)..."
+        Get-ChildItem -Path $targetPath -File -Recurse | Unblock-File
+    } else {
+        Write-Action "Unblocking files in '$targetPath' (Current Folder)..."
+        Get-ChildItem -Path $targetPath -File | Unblock-File
+    }
     Write-Success "All files in scope are now unblocked."
 }
 Set-Alias unblock Unblock-FolderFiles
-
-function New-SymbolicLink {
-    # Creates a symbolic link for a file or directory.
-    param([Parameter(Mandatory)][string]$Target, [Parameter(Mandatory)][string]$Name)
-    Write-Action "Creating symbolic link..."
-    try {
-        $targetPath = (Resolve-Path $Target).Path
-        New-Item -ItemType SymbolicLink -Path $Name -Target $targetPath -Force | Out-Null
-        Write-Success "Link established: $Name $IconArrow $targetPath"
-    }
-    catch { Write-Error "Link creation failed (Check Admin rights)." }
-}
-Set-Alias ln New-SymbolicLink
 
 function .. {
     # Moves up one directory level.
@@ -198,28 +198,48 @@ function ... {
 # >>>  DEVELOPER UTILITIES: GIT WORKFLOW                                   <<<
 # =============================================================================
 
-function gs {
+function gst {
     # Git Status shorthand.
+    if ($args.Count -eq 0) { 
+        Write-Host "  $IconInfo Arguments: -s -b" -ForegroundColor Cyan 
+    }
     git status $args
 }
 
 function gpl {
-    # Git Pull with feedback.
+    # Git Pull shorthand.
+    if ($args.Count -eq 0) { 
+        Write-Host "  $IconInfo Arguments: --rebase | --autostash | --ff-only" -ForegroundColor Cyan 
+    }
     Write-Action "Pulling from origin..."
     git pull $args
     Write-Success "Git Pull completed."
 }
 
-function gd {
+function gdf {
     # Git Diff shorthand.
+    if ($args.Count -eq 0) { 
+        Write-Host "  $IconInfo Arguments: --staged | --stat" -ForegroundColor Cyan 
+    }
     git diff $args
 }
 
-if (Get-Alias gl -ErrorAction SilentlyContinue) { Remove-Item Alias:gl -Force }
-function gl {
-    # Git Log with graph and decoration.
-    git log --oneline --graph --decorate --all $args
+function glo {
+    # Git Log shorthand.
+    if ($args.Count -eq 0) { 
+        Write-Host "  $IconInfo Arguments: --oneline --graph --decorate | -n 5 | -p" -ForegroundColor Cyan 
+    }
+    git log $args
 }
+
+function gco {
+    # Git Checkout shorthand.
+    if ($args.Count -eq 0) { 
+        Write-Host "  $IconInfo Arguments: -b <name> (new) | - (previous)" -ForegroundColor Cyan 
+    }
+    git checkout $args
+}
+
 
 function Sync-GitBranch {
     # Syncs current branch with origin (Add + Commit + Rebase Pull + Push).
@@ -241,7 +261,7 @@ Set-Alias gup Sync-GitBranch
 function Initialize-GitRepo {
     # Initializes a new Git repo, commits all, and pushes to remote.
     param([Parameter(Mandatory)][string]$RepoUrl)
-    Write-Action "Performing Platinum Git Init..."
+    Write-Action "Initializing and publishing Git repository..."
     git init
     git add .
     git commit -m "Initial commit"
@@ -254,16 +274,15 @@ Set-Alias gnew Initialize-GitRepo
 
 function Copy-GitRepo {
     # Clones a repository and enters its directory.
-    param([string]$Url, [Parameter(ValueFromRemainingArguments)][string[]]$GitArgs)
+    param([Parameter(Mandatory)][string]$Url, [Parameter(ValueFromRemainingArguments)][string[]]$GitArgs)
+    Write-Host "  $IconInfo Arguments: <folder> | -b <branch> | --depth 1" -ForegroundColor Cyan
     Write-Action "Cloning repository from: $Url"
     git clone $Url $GitArgs
     if ($LASTEXITCODE -ne 0) { return }
 
-    # Identify the target directory (either custom or default from URL)
     $TargetDir = (($Url -split '/')[-1] -replace '\.git$', '')
     if ($GitArgs) {
         $LastArg = $GitArgs[-1]
-        # If the last argument matches an existing directory, we assume it's the target
         if (Test-Path $LastArg) { $TargetDir = $LastArg }
     }
 
@@ -281,8 +300,7 @@ function Remove-GitRepo {
         Write-Action "Destroying Git tracking (.git folder)..."
         Remove-Item .git -Recurse -Force
         Write-Success "Git tracking has been removed." 
-    } 
-    else { 
+    } else { 
         Write-Error "No .git folder found in this directory." 
     }
 }
@@ -307,12 +325,10 @@ function Stop-ProcessByNameOrPort {
                 Stop-Process -Id $_.OwningProcess -Force
                 Write-Success "Killed PID $($_.OwningProcess)" 
             }
-        }
-        else { 
+        } else { 
             Write-Alert "No processes found on port $Port." 
         }
-    }
-    else {
+    } else {
         Write-Action "Searching for processes matching '$Name'..."
         $procs = Get-Process -Name "*$Name*" -ErrorAction SilentlyContinue
         if ($procs) {
@@ -320,8 +336,7 @@ function Stop-ProcessByNameOrPort {
                 Stop-Process -Id $_.Id -Force
                 Write-Success "Killed $($_.ProcessName) (PID: $($_.Id))" 
             }
-        }
-        else { 
+        } else { 
             Write-Alert "No processes matching '$Name' were found." 
         }
     }
@@ -335,8 +350,7 @@ function Get-PublicIP {
         $ip = Invoke-RestMethod -Uri "https://api.ipify.org" -ErrorAction Stop
         $ip | Set-Clipboard
         Write-Success "Public IP: $ip (Successfully copied to clipboard)"
-    }
-    catch { 
+    } catch { 
         Write-Error "Failed to reach IP service." 
     }
 }
@@ -344,12 +358,12 @@ Set-Alias myip Get-PublicIP
 
 function Get-CommandSource {
     # Finds the source (path or module) of a command.
-    param([string]$Name)
-    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    param([Parameter(Mandatory)][string]$Name, [switch]$All)
+    Write-Host "  $IconInfo Arguments: -All" -ForegroundColor Cyan
+    $cmd = Get-Command $Name -All:$All -ErrorAction SilentlyContinue
     if ($cmd) { 
         Write-Info "Source for '$Name' $IconArrow $($cmd.Source)" 
-    }
-    else { 
+    } else { 
         Write-Error "Command '$Name' not found." 
     }
 }
@@ -397,8 +411,7 @@ function Update-SystemPackages {
     $availIdx = $headerLine.IndexOf("Available")
     $sepIndex = [array]::IndexOf($output, $separatorLine)
     
-    $packageLines = $output[($sepIndex + 1)..($output.Count - 1)] | 
-    Where-Object { $_.Trim() -ne "" -and $_ -notmatch "^\d+ upgrades" }
+    $packageLines = $output[($sepIndex + 1)..($output.Count - 1)] | Where-Object { $_.Trim() -ne "" -and $_ -notmatch "^\d+ upgrades" }
 
     $packages = @()
     $counter = 1
@@ -406,10 +419,8 @@ function Update-SystemPackages {
         if ($line.Length -gt $idIdx) {
             $name = $line.Substring(0, $idIdx).Trim()
             $id = $line.Substring($idIdx, $verIdx - $idIdx).Trim()
-            
             $vLen = if ($line.Length -lt $availIdx) { $line.Length - $verIdx } else { $availIdx - $verIdx }
             $ver = $line.Substring($verIdx, $vLen).Trim()
-            
             $avail = if ($line.Length -gt $availIdx) { ($line.Substring($availIdx).Trim() -split '\s+')[0] } else { "" }
             
             if ($id) { 
@@ -431,7 +442,7 @@ function Update-SystemPackages {
         Write-Host ("  [{0,-2}] {1,-35} | {2,-15} -> {3}" -f $pkg.Number, $disp, $pkg.Version, $pkg.Available)
     }
 
-    Write-Host "`n  [a] Update All | [1 2] Select | [q] Quit" -ForegroundColor Cyan
+    Write-Host "`n  [a] Update All | [a -2 -3] All Except | [1 2] Select | [q] Quit" -ForegroundColor Cyan
     $choice = (Read-Host "  Selection").Trim().ToLower()
     
     if (-not $choice -or $choice -eq 'q') { 
@@ -443,13 +454,11 @@ function Update-SystemPackages {
     if ($choice -match '^a\s*-') { 
         $excl = [regex]::Matches($choice, '-\d+') | ForEach-Object { [int]($_.Value.Replace('-', '')) }
         $toUpdate = $packages | Where-Object { $_.Number -notin $excl } | Select-Object -ExpandProperty Id 
-    }
-    elseif ($choice -eq 'a') { 
+    } elseif ($choice -eq 'a') { 
         Write-Action "Updating all items via Winget..."
         winget upgrade --all
         return 
-    }
-    else { 
+    } else { 
         $incl = [regex]::Matches($choice, '\d+') | ForEach-Object { [int]$_.Value }
         $toUpdate = $packages | Where-Object { $_.Number -in $incl } | Select-Object -ExpandProperty Id 
     }
@@ -473,15 +482,8 @@ function Edit-Profile {
 }
 Set-Alias pro Edit-Profile
 
-function Invoke-TerminalReset {
-    # Sends escape codes to reset terminal mouse/focus tracking.
-    # Includes: ?1000l (Click), ?1002l (Drag), ?1003l (Motion), ?1004l (Focus), ?1006l (SGR Encoding)
-    Write-Host -NoNewline "$([char]27)[?1000l$([char]27)[?1002l$([char]27)[?1003l$([char]27)[?1004l$([char]27)[?1006l"
-}
-
 function Update-Profile { 
     # Reloads the PowerShell profile.
-    Invoke-TerminalReset
     . $PROFILE
     Write-Success "Profile reloaded successfully."
 }
@@ -502,7 +504,8 @@ function Show-ProfileHelp {
                 @{ Cmd = "gup <msg>"; Desc = "Sync (Add+Commit+Pull+Push)" }
                 @{ Cmd = "gnew <url>"; Desc = "Init + Remote Push" }
                 @{ Cmd = "gcl <url>"; Desc = "Clone + Enter" }
-                @{ Cmd = "gs / gd / gl"; Desc = "Status / Diff / Log" }
+                @{ Cmd = "gst / gdf / glo"; Desc = "Status / Diff / Log" }
+                @{ Cmd = "gco"; Desc = "Checkout" }
             )
         }
         @{ 
@@ -540,19 +543,3 @@ function Show-ProfileHelp {
     Write-Host "  $accentColor$( $LineChar * 50 )$reset`n"
 }
 Set-Alias menu Show-ProfileHelp
-
-if (Get-Command 'prompt' -ErrorAction SilentlyContinue) {
-    $script:oldP = $function:prompt
-    function prompt {
-        # Custom prompt wrapper to ensure terminal reset on every command.
-        Invoke-TerminalReset
-        if ($script:oldP) { 
-            & $script:oldP 
-        }
-        else { 
-            "PS $($ExecutionContext.SessionState.Path.CurrentLocation)> " 
-        }
-    }
-}
-
-Invoke-TerminalReset
