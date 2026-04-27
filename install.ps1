@@ -48,9 +48,8 @@ Write-PoshInfo "Testing internet connectivity..."
 try {
     Test-Connection -ComputerName www.google.com -Count 1 -ErrorAction Stop | Out-Null
     Write-PoshSuccess "Internet connection verified."
-} 
-catch {
-    Write-PoshError "Internet connection is required. Please check your connection and try again."
+} catch {
+    Write-PoshError "Internet connection is required. Please check your connection."
     return
 }
 
@@ -61,8 +60,7 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     if ($PSCommandPath) {
         Start-Process pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
         exit
-    } 
-    else {
+    } else {
         Write-PoshWarn "Script is running in memory. Downloading to temp file for elevation..."
         $TempScript = Join-Path $env:TEMP "install_temp.ps1"
         Invoke-WebRequest -Uri "$RepoBaseUrl/install.ps1" -OutFile $TempScript -ErrorAction SilentlyContinue
@@ -78,8 +76,7 @@ if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
     Write-PoshInfo "Installing latest PowerShell 7..."
     winget install --id Microsoft.PowerShell --source winget --accept-package-agreements --accept-source-agreements
     Write-PoshSuccess "PowerShell 7 installed."
-} 
-else {
+} else {
     Write-PoshSuccess "PowerShell 7 already installed."
 }
 
@@ -89,25 +86,14 @@ if (-not (winget list --id JanDeDobbeleer.OhMyPosh -e -q)) {
     Write-PoshInfo "Installing Oh My Posh..."
     winget install --id JanDeDobbeleer.OhMyPosh --source winget --accept-package-agreements --accept-source-agreements
     Write-PoshSuccess "Oh My Posh installed."
-} 
-else {
+} else {
     Write-PoshSuccess "Oh My Posh is already installed."
 }
 
 # Refresh PATH for the current session
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-# 4. Install Nerd Font
-Write-PoshInfo "Ensuring Nerd Font (FiraCode NF) is installed..."
-try {
-    oh-my-posh font install FiraCode --headless
-    Write-PoshSuccess "FiraCode Nerd Font installed/verified."
-} 
-catch {
-    Write-PoshWarn "Failed to install font via oh-my-posh."
-}
-
-# 5. Oh My Posh Themes
+# 4. Oh My Posh Themes
 $localAppData = $env:LOCALAPPDATA
 $ThemesDir = Join-Path $localAppData "Programs\oh-my-posh\themes"
 if (-not (Test-Path $ThemesDir)) {
@@ -122,12 +108,11 @@ try {
     Expand-Archive -Path $ZipPath -DestinationPath $ThemesDir -Force
     Remove-Item -Path $ZipPath -Force
     Write-PoshSuccess "Themes updated."
-} 
-catch {
+} catch {
     Write-PoshWarn "Could not update themes. Proceeding with existing ones."
 }
 
-# 6. PowerShell Gallery Modules
+# 5. PowerShell Gallery Modules
 Write-PoshInfo "Installing required PowerShell modules..."
 $Modules = @('Terminal-Icons', 'PSReadLine')
 foreach ($Module in $Modules) {
@@ -136,17 +121,15 @@ foreach ($Module in $Modules) {
         try {
             Install-Module -Name $Module -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
             Write-PoshSuccess "Module $Module installed."
-        } 
-        catch {
+        } catch {
             Write-PoshError "Failed to install module $Module."
         }
-    } 
-    else {
+    } else {
         Write-PoshSuccess "Module $Module is already present."
     }
 }
 
-# 7. Profile Installation & Backup
+# 6. Profile Installation & Backup
 Write-PoshInfo "Setting up PowerShell profile..."
 $ProfilePath = $PROFILE
 $ProfileDir = Split-Path -Parent $ProfilePath
@@ -159,7 +142,8 @@ if (-not (Test-Path $ProfileDir)) {
 $ProfileExists = Test-Path $ProfilePath
 
 Write-PoshInfo "Downloading new profile from GitHub..."
-try {
+try
+{
     $TargetUrl = "$RepoBaseUrl/Microsoft.PowerShell_profile.ps1"
     Invoke-WebRequest -Uri $TargetUrl -OutFile $TempProfile -ErrorAction Stop
     
@@ -173,12 +157,13 @@ try {
     
     if ($ProfileExists) {
         Write-PoshSuccess "Profile updated successfully from GitHub."
-    } 
+    }
     else {
         Write-PoshSuccess "Profile installed successfully from GitHub."
     }
-} 
-catch {
+}
+catch
+{
     Write-PoshError "Could not fetch profile from GitHub."
     Write-PoshError "Details: $($_.Exception.Message)"
     if (Test-Path $TempProfile) { Remove-Item $TempProfile -Force }

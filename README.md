@@ -28,32 +28,32 @@
 
 The fastest way to get started is using the automated installer which configures your entire environment in seconds.
 
-> [!CAUTION]
-> **Administrator Privileges Required**: The installer requires Admin rights to install system-wide fonts and packages. The script will automatically request elevation if needed.
+> **Administrator Privileges Required**: The installer requires Admin rights to install system packages. The script will automatically request elevation if needed.
 
-### The One-Liner
-Run this in a standard PowerShell window:
+### 1. Mandatory Pre-requisite: Install & Apply a Nerd Font
+Before running the installer, you **must** have a Nerd Font installed and active in your terminal. This ensures icons render correctly as soon as the installation completes.
+
+**Step A: Pick and Install your font family:**
+* If you are limited to monospaced fonts (because of your terminal, etc) then pick a font with `Nerd Font Mono` (or `NFM`).
+* If you want to have bigger icons (usually around 1.5 normal letters wide) pick a font without `Mono` i.e. `Nerd Font` (or `NF`)
+
+We recommend [FiraCode Nerd Font](https://www.nerdfonts.com/font-downloads) or [JetBrainsMono Nerd Font](https://www.nerdfonts.com/font-downloads).
+
+**Step B: Apply it to Windows Terminal:**
+1.  Open **Windows Terminal Settings** (`Ctrl + ,`).
+2.  Go to **Profiles** -> **PowerShell** (or Defaults).
+3.  Select **Appearance**.
+4.  Set **Font Face** to your installed Nerd Font (e.g., `FiraCode Nerd Font` or `JetBrainsMono NF`).
+5.  Click **Save**.
+
+### 2. The One-Liner
+Once the font is applied, run this in a standard PowerShell window:
 ```powershell
 irm https://raw.githubusercontent.com/SiliconeShojo/Supercharged-Terminal/main/install.ps1 | iex
 ```
 
 > [!TIP]
-> This script handles PowerShell 7, Oh My Posh, FiraCode Nerd Font, and your profile configuration automatically.
-
-<br>
-
-![Separator](https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif)
-
-<br>
-
-## ⚠️ Final Step: Enable the Nerd Font
-While the installer downloads the font, you **must** manually tell Windows Terminal to use it, otherwise icons will appear as broken squares (□).
-
-1.  Open **Windows Terminal Settings** (`Ctrl + ,`).
-2.  Go to **Profiles** -> **PowerShell** (or Defaults).
-3.  Select **Appearance**.
-4.  Set **Font Face** to `FiraCode Nerd Font`
-5.  Click **Save**.
+> This script handles PowerShell 7, Oh My Posh, and your profile configuration automatically.
 
 <br>
 
@@ -63,7 +63,7 @@ While the installer downloads the font, you **must** manually tell Windows Termi
 
 ## 📖 Command Reference
 
-For a complete list of commands, aliases, and detailed usage examples, please see the dedicated documentation page:
+For a complete list of commands, aliases, and detailed usage examples with code blocks, please see the dedicated documentation page:
 
 ### 👉 [View Full Command Reference](COMMANDS.md)
 
