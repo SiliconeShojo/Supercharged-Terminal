@@ -321,9 +321,14 @@ function Stop-ProcessByNameOrPort {
         Write-Action "Searching for processes on port $Port..."
         $conns = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
         if ($conns) {
-            $conns | ForEach-Object { 
-                Stop-Process -Id $_.OwningProcess -Force
-                Write-Success "Killed PID $($_.OwningProcess)" 
+            # Extract unique PIDs to avoid trying to kill the same process multiple times
+            $conns | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { 
+                try {
+                    Stop-Process -Id $_ -Force -ErrorAction Stop
+                    Write-Success "Killed PID $_" 
+                } catch {
+                    Write-Alert "Skipped PID $_ - Process already exited or access denied."
+                }
             }
         } else { 
             Write-Alert "No processes found on port $Port." 
@@ -333,8 +338,12 @@ function Stop-ProcessByNameOrPort {
         $procs = Get-Process -Name "*$Name*" -ErrorAction SilentlyContinue
         if ($procs) {
             $procs | ForEach-Object { 
-                Stop-Process -Id $_.Id -Force
-                Write-Success "Killed $($_.ProcessName) (PID: $($_.Id))" 
+                try {
+                    Stop-Process -Id $_.Id -Force -ErrorAction Stop
+                    Write-Success "Killed $($_.ProcessName) (PID: $($_.Id))" 
+                } catch {
+                    Write-Alert "Skipped $($_.ProcessName) (PID: $($_.Id)) - Process already exited or access denied."
+                }
             }
         } else { 
             Write-Alert "No processes matching '$Name' were found." 
