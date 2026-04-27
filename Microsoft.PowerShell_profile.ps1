@@ -2,6 +2,9 @@
 # Standardized developer environment with git enhancements, system utilities,
 # and a custom interface system.
 
+# Store the actual path of this script for the 'ref' command
+$Global:ProfileSourcePath = $PSCommandPath
+
 # =============================================================================
 # >>>  CORE ENVIRONMENT & PERFORMANCE                                      <<<
 # =============================================================================
@@ -55,7 +58,7 @@ function Write-Alert {
     Write-Host " ] $msg"
 }
 
-function Write-Error {
+function Write-Failure {
     # Writes an error message with a 'FAIL' icon.
     param([string]$msg)
     Write-Host "  [ " -NoNewline
@@ -156,7 +159,7 @@ function Get-DirectorySize {
         $disp = if ($size -ge 1GB) { "{0:N2} GB" -f ($size / 1GB) } elseif ($size -ge 1MB) { "{0:N2} MB" -f ($size / 1MB) } else { "{0:N2} KB" -f ($size / 1KB) }
         Write-Success "Size of '$($fullPath.Split('\')[-1])': $disp"
     } catch { 
-        Write-Error "Calculation failed." 
+        Write-Failure "Calculation failed." 
     }
 }
 Set-Alias dsize Get-DirectorySize
@@ -246,7 +249,7 @@ function Sync-GitBranch {
     param([Parameter(Mandatory)][string]$Message)
     $Branch = (git branch --show-current)
     if (-not $Branch) { 
-        Write-Error "Current directory is not a Git repository."
+        Write-Failure "Current directory is not a Git repository."
         return 
     }
     Write-Action "Auto-syncing '$Branch' to origin..."
@@ -301,7 +304,7 @@ function Remove-GitRepo {
         Remove-Item .git -Recurse -Force
         Write-Success "Git tracking has been removed." 
     } else { 
-        Write-Error "No .git folder found in this directory." 
+        Write-Failure "No .git folder found in this directory." 
     }
 }
 Set-Alias grem Remove-GitRepo
@@ -360,7 +363,7 @@ function Get-PublicIP {
         $ip | Set-Clipboard
         Write-Success "Public IP: $ip (Successfully copied to clipboard)"
     } catch { 
-        Write-Error "Failed to reach IP service." 
+        Write-Failure "Failed to reach IP service." 
     }
 }
 Set-Alias myip Get-PublicIP
@@ -383,17 +386,25 @@ function Get-NetworkInfo {
         $gwNeighbor = Get-NetNeighbor -IPAddress $gwIp -ErrorAction SilentlyContinue | Select-Object -First 1
         $gwMac = if ($gwNeighbor) { $gwNeighbor.LinkLayerAddress } else { "Not Found in ARP Cache" }
 
-        [PSCustomObject]@{
-            LocalIP     = $localIp
-            LocalMAC    = $localMac
-            GatewayIP   = $gwIp
-            GatewayMAC  = $gwMac
-            Interface   = $config.InterfaceAlias
-        } | Format-List
+        # Styled output
+        $c = [char]27
+        $accentColor = "$c[90m"
+        $reset = "$c[0m"
+
+        Write-Host ""
+        Write-Host "  $IconInfo NETWORK INTERFACE: " -NoNewline; Write-Host $config.InterfaceAlias -ForegroundColor Yellow
+        Write-Host "  $accentColor$($LineChar * 50)$reset"
+        Write-Host "  $IconArrow Local IP:    " -NoNewline; Write-Host $localIp -ForegroundColor Cyan
+        Write-Host "  $IconArrow Local MAC:   " -NoNewline; Write-Host $localMac -ForegroundColor Gray
+        Write-Host "  $IconArrow Gateway IP:  " -NoNewline; Write-Host $gwIp -ForegroundColor Cyan
+        Write-Host "  $IconArrow Gateway MAC: " -NoNewline; Write-Host $gwMac -ForegroundColor Gray
+        Write-Host "  $accentColor$($LineChar * 50)$reset"
+        Write-Host ""
+
         Write-Success "Network details retrieved."
     }
     catch {
-        Write-Error "Failed to retrieve network info: $($_.Exception.Message)"
+        Write-Failure "Failed to retrieve network info: $($_.Exception.Message)"
     }
 }
 Set-Alias mac Get-NetworkInfo
@@ -406,7 +417,7 @@ function Start-FileShare {
     
     # Check for Dufs engine
     if (-not (Get-Command dufs -ErrorAction SilentlyContinue)) {
-        Write-Error "File Server Engine (Dufs) is not installed. Fix: winget install sigoden.Dufs"
+        Write-Failure "File Server Engine (Dufs) is not installed. Fix: winget install sigoden.Dufs"
         return
     }
 
@@ -434,7 +445,7 @@ function Start-FileShare {
         dufs . --port $Port --allow-all
     }
     catch {
-        Write-Error "An unexpected error occurred: $($_.Exception.Message)"
+        Write-Failure "An unexpected error occurred: $($_.Exception.Message)"
     }
 }
 Set-Alias share Start-FileShare
@@ -447,7 +458,7 @@ function Get-CommandSource {
     if ($cmd) { 
         Write-Info "Source for '$Name' $IconArrow $($cmd.Source)" 
     } else { 
-        Write-Error "Command '$Name' not found." 
+        Write-Failure "Command '$Name' not found." 
     }
 }
 Set-Alias which Get-CommandSource
@@ -469,15 +480,27 @@ function Update-ProfileDependencies {
     # Updates the core dependencies used by this profile.
     Write-Action "Synchronizing Profile Dependencies..."
 
+    # Check for Admin rights
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Write-Alert "Running without Administrator privileges. Binary updates may fail."
+        Write-Host "    $IconInfo Recommendation: Run terminal as Admin for full sync." -ForegroundColor Gray
+    }
+
     # 1. PowerShell Modules
     $modules = @("PSReadLine", "Terminal-Icons")
     foreach ($m in $modules) {
         Write-Action "Syncing Module: $m..."
         try {
-            Update-Module -Name $m -ErrorAction SilentlyContinue -Scope CurrentUser
-            Write-Success "Sync attempted for $m."
+            if ($m -eq "PSReadLine" -and (Get-Module -Name PSReadLine -ErrorAction SilentlyContinue)) {
+                Write-Info "PSReadLine is currently in use. Update skipped."
+                Write-Host "    $IconInfo Tip: Run 'pwsh -NoProfile' then 'Update-Module PSReadLine' to update." -ForegroundColor Gray
+                continue
+            }
+            Update-Module -Name $m -ErrorAction Stop -Scope CurrentUser
+            Write-Success "$m is synchronized."
         } catch {
-            Write-Alert "Manual update may be required for $m."
+            Write-Alert "Sync failed for $m. Manual update may be required."
         }
     }
 
@@ -487,19 +510,26 @@ function Update-ProfileDependencies {
         Write-Action "Syncing Binary: $t..."
         try {
             & winget upgrade --id $t --silent --accept-package-agreements --accept-source-agreements | Out-Null
-            if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335186) { # 0 = Success/No update, -1978335186 = No update available
+            
+            # Known Success/No-Update Exit Codes:
+            # 0           = Success
+            # -1978335186 = 0x8A15002E (No applicable upgrade found)
+            # -1978335189 = 0x8A15002B (Update not applicable)
+            $successCodes = @(0, -1978335186, -1978335189)
+            
+            if ($successCodes -contains $LASTEXITCODE) {
                 Write-Success "$t is synchronized."
             } else {
                 Write-Alert "Check $t (Exit Code: $LASTEXITCODE)."
             }
         } catch {
-            Write-Error "Failed to check $t."
+            Write-Failure "Failed to check $t."
         }
     }
     
     Write-Success "All profile dependencies processed."
 }
-Set-Alias upd Update-ProfileDependencies
+Set-Alias sync Update-ProfileDependencies
 
 function Update-SystemPackages {
     # Checks for and installs updates via Winget with an interactive menu.
@@ -603,7 +633,11 @@ Set-Alias pro Edit-Profile
 
 function Update-Profile { 
     # Reloads the PowerShell profile.
-    . $PROFILE
+    if (Test-Path $Global:ProfileSourcePath) {
+        . $Global:ProfileSourcePath
+    } else {
+        . $PROFILE
+    }
     Write-Success "Profile reloaded successfully."
 }
 Set-Alias ref Update-Profile
@@ -641,7 +675,7 @@ function Show-ProfileHelp {
             Title = "󰈸 SYSTEM"
             Items = @(
                 @{ Cmd = "update"; Desc = "Winget Checks" }
-                @{ Cmd = "upd"; Desc = "Update Profile Deps" }
+                @{ Cmd = "sync"; Desc = "Update Profile Deps" }
                 @{ Cmd = "kproc <arg>"; Desc = "Kill by Port or Name" }
                 @{ Cmd = "myip"; Desc = "Public IP to Clipboard" }
                 @{ Cmd = "mac"; Desc = "Local & Gateway IP/MAC" }

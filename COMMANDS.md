@@ -256,12 +256,12 @@ Checks for and installs application updates via Winget using an interactive sele
 update
 ```
 
-### `upd`
+### `sync`
 Synchronizes and updates the core internal dependencies used by this profile (Modules and Binary tools).
 
 ```powershell
 # Update profile dependencies
-upd
+sync
 ```
 
 ---
