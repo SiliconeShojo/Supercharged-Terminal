@@ -129,7 +129,17 @@ foreach ($Module in $Modules) {
     }
 }
 
-# 6. Profile Installation & Backup
+# 6. Install File Server Engine (Dufs)
+Write-PoshInfo "Checking for File Server Engine (Dufs)..."
+if (-not (Get-Command dufs -ErrorAction SilentlyContinue)) {
+    Write-PoshInfo "Installing Dufs..."
+    winget install --id sigoden.Dufs --source winget --accept-package-agreements --accept-source-agreements
+    Write-PoshSuccess "Dufs installed."
+} else {
+    Write-PoshSuccess "Dufs already installed."
+}
+
+# 7. Profile Installation & Backup
 Write-PoshInfo "Setting up PowerShell profile..."
 $ProfilePath = $PROFILE
 $ProfileDir = Split-Path -Parent $ProfilePath

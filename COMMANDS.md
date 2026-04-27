@@ -185,6 +185,37 @@ grem
 
 ---
 
+## 🌐 Network Utilities
+
+### `mac`
+Retrieves IP and MAC addresses for the local PC and its default gateway.
+
+```powershell
+# Get network details (IP and MAC)
+mac
+```
+
+### `myip`
+Fetches your public IP address and automatically copies it to the clipboard.
+
+```powershell
+# Get public IP
+myip
+```
+
+### `share`
+Instantly turns the current directory into a web server with a modern GUI for uploading and downloading files.
+
+```powershell
+# Start file sharing (Default Port: 5000)
+share
+
+# Start on a custom port
+share 8081
+```
+
+---
+
 ## ⚙️ System & Process
 
 ### `kproc`
@@ -196,14 +227,6 @@ kproc 8080
 
 # Kill process by name (wildcard supported)
 kproc "node"
-```
-
-### `myip`
-Fetches your public IP address and automatically copies it to the clipboard.
-
-```powershell
-# Get public IP
-myip
 ```
 
 ### `which`
@@ -231,6 +254,14 @@ Checks for and installs application updates via Winget using an interactive sele
 ```powershell
 # Start update manager
 update
+```
+
+### `upd`
+Synchronizes and updates the core internal dependencies used by this profile (Modules and Binary tools).
+
+```powershell
+# Update profile dependencies
+upd
 ```
 
 ---

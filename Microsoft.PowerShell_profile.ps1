@@ -365,6 +365,80 @@ function Get-PublicIP {
 }
 Set-Alias myip Get-PublicIP
 
+function Get-NetworkInfo {
+    # Retrieves IP and MAC addresses for the local PC and its default gateway.
+    Write-Action "Retrieving local and gateway network details..."
+    try {
+        $config = Get-NetIPConfiguration | Where-Object { $null -ne $_.IPv4DefaultGateway } | Select-Object -First 1
+        if (-not $config) {
+            Write-Alert "No active network interface with a default gateway found."
+            return
+        }
+
+        $gwIp = $config.IPv4DefaultGateway.NextHop
+        $localIp = $config.IPv4Address.IPAddress
+        $adapter = Get-NetAdapter -InterfaceIndex $config.InterfaceIndex
+        $localMac = $adapter.MacAddress
+
+        $gwNeighbor = Get-NetNeighbor -IPAddress $gwIp -ErrorAction SilentlyContinue | Select-Object -First 1
+        $gwMac = if ($gwNeighbor) { $gwNeighbor.LinkLayerAddress } else { "Not Found in ARP Cache" }
+
+        [PSCustomObject]@{
+            LocalIP     = $localIp
+            LocalMAC    = $localMac
+            GatewayIP   = $gwIp
+            GatewayMAC  = $gwMac
+            Interface   = $config.InterfaceAlias
+        } | Format-List
+        Write-Success "Network details retrieved."
+    }
+    catch {
+        Write-Error "Failed to retrieve network info: $($_.Exception.Message)"
+    }
+}
+Set-Alias mac Get-NetworkInfo
+
+function Start-FileShare {
+    # Starts a modern web server for file sharing in the current directory.
+    param([int]$Port = 5000)
+    
+    Write-Action "Initializing Local File Server..."
+    
+    # Check for Dufs engine
+    if (-not (Get-Command dufs -ErrorAction SilentlyContinue)) {
+        Write-Error "File Server Engine (Dufs) is not installed. Fix: winget install sigoden.Dufs"
+        return
+    }
+
+    try {
+        # Get LAN IP for sharing
+        $config = Get-NetIPConfiguration | Where-Object { $null -ne $_.IPv4DefaultGateway } | Select-Object -First 1
+        $ip = if ($config) { $config.IPv4Address.IPAddress } else { "localhost" }
+        $url = "http://$($ip):$Port"
+
+        $c = [char]27
+        $accentColor = "$c[90m"
+        $reset = "$c[0m"
+
+        Write-Host ""
+        Write-Host "  $IconInfo SHARING DIRECTORY" -ForegroundColor Cyan
+        Write-Host "  $accentColor$($LineChar * 50)$reset"
+        Write-Host "  $IconArrow URL: " -NoNewline; Write-Host $url -ForegroundColor Yellow
+        Write-Host "  $IconArrow Path: $(Get-Location)"
+        Write-Host "  $IconArrow Mode: Full Access (Upload/Download/Search/Delete)"
+        Write-Host "  $accentColor$($LineChar * 50)$reset"
+        Write-Host "  [ Press Ctrl+C to stop sharing ]" -ForegroundColor Gray
+        Write-Host ""
+
+        # Start Dufs with allow-all permissions
+        dufs . --port $Port --allow-all
+    }
+    catch {
+        Write-Error "An unexpected error occurred: $($_.Exception.Message)"
+    }
+}
+Set-Alias share Start-FileShare
+
 function Get-CommandSource {
     # Finds the source (path or module) of a command.
     param([Parameter(Mandatory)][string]$Name, [switch]$All)
@@ -390,6 +464,42 @@ function Clear-TerminalHistory {
     Write-Success "All command history has been cleared."
 }
 Set-Alias clh Clear-TerminalHistory
+
+function Update-ProfileDependencies {
+    # Updates the core dependencies used by this profile.
+    Write-Action "Synchronizing Profile Dependencies..."
+
+    # 1. PowerShell Modules
+    $modules = @("PSReadLine", "Terminal-Icons")
+    foreach ($m in $modules) {
+        Write-Action "Syncing Module: $m..."
+        try {
+            Update-Module -Name $m -ErrorAction SilentlyContinue -Scope CurrentUser
+            Write-Success "Sync attempted for $m."
+        } catch {
+            Write-Alert "Manual update may be required for $m."
+        }
+    }
+
+    # 2. Binary Tools (Winget)
+    $tools = @("sigoden.Dufs", "JanDeDobbeleer.OhMyPosh")
+    foreach ($t in $tools) {
+        Write-Action "Syncing Binary: $t..."
+        try {
+            & winget upgrade --id $t --silent --accept-package-agreements --accept-source-agreements | Out-Null
+            if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335186) { # 0 = Success/No update, -1978335186 = No update available
+                Write-Success "$t is synchronized."
+            } else {
+                Write-Alert "Check $t (Exit Code: $LASTEXITCODE)."
+            }
+        } catch {
+            Write-Error "Failed to check $t."
+        }
+    }
+    
+    Write-Success "All profile dependencies processed."
+}
+Set-Alias upd Update-ProfileDependencies
 
 function Update-SystemPackages {
     # Checks for and installs updates via Winget with an interactive menu.
@@ -531,8 +641,11 @@ function Show-ProfileHelp {
             Title = "󰈸 SYSTEM"
             Items = @(
                 @{ Cmd = "update"; Desc = "Winget Checks" }
+                @{ Cmd = "upd"; Desc = "Update Profile Deps" }
                 @{ Cmd = "kproc <arg>"; Desc = "Kill by Port or Name" }
                 @{ Cmd = "myip"; Desc = "Public IP to Clipboard" }
+                @{ Cmd = "mac"; Desc = "Local & Gateway IP/MAC" }
+                @{ Cmd = "share"; Desc = "Start GUI File Server" }
                 @{ Cmd = "pro / ref"; Desc = "Edit / Reload Profile" }
             )
         }

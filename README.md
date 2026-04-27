@@ -63,7 +63,7 @@ irm https://raw.githubusercontent.com/SiliconeShojo/Supercharged-Terminal/main/i
 
 ## 📖 Command Reference
 
-For a complete list of commands, aliases, and detailed usage examples with code blocks, please see the dedicated documentation page:
+For a complete list of commands, aliases, and detailed usage examples, please see the dedicated documentation page:
 
 ### 👉 [View Full Command Reference](COMMANDS.md)
 
