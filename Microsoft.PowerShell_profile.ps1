@@ -116,10 +116,8 @@ function Select-FileText {
     $absPath = if ($SearchPath -eq ".") { $PWD.Path } else { (Resolve-Path $SearchPath).Path }
     Write-Action "Searching for '$Pattern' in: $absPath"
 
-    # Prepare Ignore Regex
     $ExtRegex = ($IgnoreExts -replace '\*', '.*' -join '|')
     $DirRegex = "\\($($IgnoreDirs -join '|'))\\"
-
     $results = Get-ChildItem -Path $absPath -Recurse -File -ErrorAction SilentlyContinue | 
                Where-Object { 
                    $_.Name -notmatch $ExtRegex -and 
@@ -129,15 +127,20 @@ function Select-FileText {
     
     if ($results) {
         Write-Host ""
-        $results | Group-Object Filename | ForEach-Object {
+        $grouped = $results | Group-Object Filename
+        $grouped | ForEach-Object {
             Write-Host "  $FileIcon $cyan$($_.Name)$reset"
             $_.Group | ForEach-Object {
                 $content = $_.Line.Trim()
-                if ($content.Length -gt 120) { $content = $content.Substring(0, 117) + "..." }
+                if ($content.Length -gt 100) { $content = $content.Substring(0, 97) + "..." }
                 Write-Host "    $magenta$($_.LineNumber)$reset $IconArrow $gray$content$reset"
             }
         }
-        Write-Success "Matches found."
+        $matchCount = $results.Count
+        $fileCount = $grouped.Count
+        $matchText = if ($matchCount -eq 1) { "match" } else { "matches" }
+        $fileText = if ($fileCount -eq 1) { "file" } else { "files" }
+        Write-Success "Found $cyan$matchCount$reset $matchText across $cyan$fileCount$reset $fileText."
     } else { Write-Alert "No matches found in: $absPath" }
 }
 Set-Alias sf Select-FileText
@@ -318,31 +321,30 @@ function Update-SystemPackage {
     if ($output -match "No installed package found") { Write-Success "System is up to date."; return }
     if ($output -match "No applicable update found") { Write-Success "No updates available."; return }
 
-    # Extract lines starting after the header (usually looking for the table rows)
     $lines = $output -split "`r?`n"
     $startLine = 0
     for ($i = 0; $i -lt $lines.Count; $i++) {
         if ($lines[$i] -match "Name\s+Id\s+Version\s+Available") {
-            $startLine = $i + 2 # Skip header and separator line
+            $startLine = $i + 2 
             break
         }
     }
 
     $packages = @()
     $counter = 1
-    # Robust Regex Parsing for fixed-width-ish columns
-    $regex = "(?<Name>.{2,})\s+(?<Id>[^\s]+)\s+(?<Ver>[^\s]+)\s+(?<Avail>[^\s]+)"
+    $regex = "(?<Name>.{2,})\s+(?<Id>[^\s]+)\s+(?<Ver>[^\s]+)\s+(?<Avail>[^\s]+)\s+(?<Source>[^\s]+)"
     
     for ($i = $startLine; $i -lt $lines.Count; $i++) {
         $line = $lines[$i].Trim()
         if (-not $line) { continue }
         if ($line -match $regex) {
             $packages += [PSCustomObject]@{
-                Num   = $counter++
-                Name  = $Matches['Name'].Trim()
-                Id    = $Matches['Id'].Trim()
-                Ver   = $Matches['Ver'].Trim()
-                Avail = $Matches['Avail'].Trim()
+                Num    = $counter++
+                Name   = $Matches['Name'].Trim()
+                Id     = $Matches['Id'].Trim()
+                Ver    = $Matches['Ver'].Trim()
+                Avail  = $Matches['Avail'].Trim()
+                Source = $Matches['Source'].Trim()
             }
         }
     }
@@ -350,31 +352,39 @@ function Update-SystemPackage {
     if (-not $packages) { Write-Alert "No updates found or parsing failed."; return }
 
     Write-Host "`n  $IconArrow Available Updates:" -ForegroundColor Cyan
+    Write-Host "  $gray#   Package Name                   Current         Available       Source$reset"
+    Write-Host "  $gray$($LineChar * 80)$reset"
+
     foreach ($pkg in $packages) {
         $c = [char]27
         $nameDisp = if ($pkg.Name.Length -gt 30) { $pkg.Name.Substring(0, 27) + "..." } else { $pkg.Name }
+        $source = "$c[92m$($pkg.Source)$c[0m"
         
-        # Color-coded Versioning
         $v1 = $pkg.Ver -split '\.'
         $v2 = $pkg.Avail -split '\.'
-        $highlighted = ""
+        $highlightParts = @()
         $foundDiff = $false
-        for ($j = 0; $j -lt [Math]::Max($v1.Count, $v2.Count); $j++) {
-            if (-not $foundDiff -and $j -lt $v1.Count -and $j -lt $v2.Count -and $v1[$j] -ne $v2[$j]) {
-                $highlighted += "$c[92m$($v2[$j])$c[0m"
+        for ($j = 0; $j -lt $v2.Count; $j++) {
+            $part = $v2[$j]
+            if (-not $foundDiff -and $j -lt $v1.Count -and $v1[$j] -ne $part) {
+                $highlightParts += "$c[92m$part$c[0m"
                 $foundDiff = $true
             }
-            elseif ($j -ge $v1.Count -and $j -lt $v2.Count) {
-                $highlighted += "$c[92m$($v2[$j])$c[0m"
-                $foundDiff = $true
+            elseif ($foundDiff -or $j -ge $v1.Count) {
+                $highlightParts += "$c[92m$part$c[0m"
             }
             else {
-                $highlighted += if ($j -lt $v2.Count) { $v2[$j] } else { "" }
+                $highlightParts += $part
             }
-            if ($j -lt [Math]::Max($v1.Count, $v2.Count) - 1 -and $j -lt $v2.Count) { $highlighted += "." }
         }
+        $highlighted = $highlightParts -join "."
 
-        Write-Host ("  [{0,-2}] {1,-30} | {2,-15} -> {3}" -f $pkg.Num, $nameDisp, $pkg.Ver, $highlighted)
+        $availPadding = 16 - $pkg.Avail.Length
+        if ($availPadding -lt 0) { $availPadding = 0 }
+        $availSpace = " " * $availPadding
+
+        Write-Host ("  [{0}] {1,-30} {2,-15} " -f $pkg.Num, $nameDisp, $pkg.Ver) -NoNewline
+        Write-Host "$highlighted$availSpace$source"
     }
 
     Write-Host "`n  [a] All | [1 2] Select | [q] Quit" -ForegroundColor Cyan
