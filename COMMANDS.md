@@ -1,293 +1,231 @@
 # 📖 Command Reference
 
-This page provides a detailed breakdown of all the aliases and custom commands available in the Supercharged Terminal profile.
 
----
 
 ## 📂 Navigation & Filesystem
 
-### `mkcd`
-Creates a new directory and immediately enters it.
 
-```powershell
-# Create and enter a new project folder
-mkcd my-awesome-project
-```
+### `mdc` (Initialize-Directory)
+- **Purpose**: Creates a new directory and immediately changes the terminal location to it.
+- **Parameters**:
+  - `Path`: (Mandatory) The name or path of the directory to create.
+- **Usage**:
+  ```powershell
+  mdc "my-new-project"
+  ```
 
-### `touch`
-Creates a new empty file or updates the timestamp of an existing one.
+### `..` / `...`
+- **Purpose**: Fast directory jumping.
+- **Usage**:
+  - `..`: Move up one level.
+  - `...`: Move up two levels.
 
-```powershell
-# Create a new file
-touch server.js
+### `sf` (Select-FileText)
+- **Purpose**: A high-performance text search utility. Uses a robust native engine for instant results while ignoring junk folders.
+- **Parameters**:
+  - `Pattern`: (Mandatory, **Positional 1**) Text or regex to search for. No flag needed.
+  - `Path`: (Optional, **Positional 2**, Default: `.`) The search root.
+  - `MaxDepth` [**-d**]: (Optional, Default: `Full Recursion`) Folder recursion depth.
+- **Usage**:
+  ```powershell
+  sf "apiKey"          # Basic search (detected as Pattern)
+  sf "TODO" src -d 5   # Search src folder, 5 levels deep
+  ```
 
-# Update timestamp of an existing file
-touch README.md
-```
+### `ds` (Get-DirectorySize)
+- **Purpose**: Quickly calculates the total size of a directory **recursively** (includes all subfolders).
+- **Parameters**:
+  - `Path`: (Optional, Default: `.`) Target folder.
+  - `MaxDepth` [**-d**]: (Optional, Default: `Full Recursion`) How many subfolders deep to calculate.
+- **Usage**:
+  ```powershell
+  ds
+  ds -d 2              # Only look 2 subfolders deep
+  ```
 
-### `fxt`
-Searches for a text pattern within files, automatically excluding common development folders like `.git`, `node_modules`, `dist`, etc.
+### `touch` (Set-TouchFile)
+- **Purpose**: Creates an empty file or updates the "Last Modified" timestamp.
+- **Parameters**:
+  - `Path`: (Mandatory) File to create/touch.
+- **Usage**:
+  ```powershell
+  touch "index.html"
+  ```
+
+### `unblock` (Unblock-FolderFiles)
+- **Purpose**: Recursively removes the "Downloaded from Internet" block from files.
+- **Parameters**:
+  - `Path`: (Optional, Default: `.`) Target folder.
+  - `MaxDepth` [**-d**]: (Optional) Limit recursion depth.
+  - `Recurse` [**-r**]: (Switch) Unblock all subfolders.
+- **Usage**:
+  ```powershell
+  unblock C:\Downloads -r  # Unblock everything in Downloads
+  unblock -d 1             # Unblock current folder + immediate subfolders
+  ```
 
 > [!NOTE]
-> **Depth** refers to how many subfolder levels to search. A depth of `3` (default) means it searches the current folder plus three levels of subdirectories.
-
-```powershell
-# Search for "TODO" (Recommended Args: <path> | -MaxDepth 5)
-fxt "TODO"
-
-# Search for "password" in a specific path
-fxt "password" "C:\Users\Documents"
-
-# Search with custom depth
-fxt "main" . 10
-```
-
-### `dsize`
-Calculates the total size of a directory by scanning its contents up to a specific depth.
-
-> [!NOTE]
-> The default depth is `5`. This ensures fast calculation even in large projects by avoiding deep system or dependency folders.
-
-```powershell
-# Check size (Recommended Args: -MaxDepth 10)
-dsize
-
-# Check size of node_modules
-dsize ./node_modules
-
-# Check size with custom depth (e.g., depth 10)
-dsize . 10
-```
-
-### `unblock`
-Unblocks files in the current folder, which is often required for scripts downloaded from the internet.
-
-```powershell
-# Unblock files (Recommended Args: <path> | -Recurse | -MaxDepth 3)
-unblock
-
-# Unblock a specific folder
-unblock ./downloads
-
-# Recursively unblock to a specific depth
-unblock -MaxDepth 2
-
-# Full recursion
-unblock -Recurse
-```
-
-### `..` and `...`
-Quick navigation to parent directories.
-
-```powershell
-# Move up one level
-..
-
-# Move up two levels
-...
-```
-
----
-
-### 💡 Pro Tip: Customizing Depth (fxt, dsize, unblock)
-
-Utility commands like **`fxt`**, **`dsize`**, and **`unblock`** can be run in two ways depending on which settings you want to change.
-
-#### 🚀 Option A: The "Fast" Way (In Order)
-If you provide values in the correct order, you don't need to type the "dashed" names. PowerShell reads them from left to right.
-
-```powershell
-# fxt/unblock Order: <pattern/path> <path/depth> <depth>
-fxt "main" . 10       # Search current folder
-unblock ./downloads 2 # Unblock downloads folder (Depth 2)
-```
-
-#### 🎯 Option B: The "Precise" Way (Using Names)
-If you want to **skip** an argument (for example: search the current folder but change the depth), use the parameter name with a dash.
-
-```powershell
-# This skips the <path> and goes straight to depth
-fxt "main" -MaxDepth 5
-```
+> **Understanding Depth (`-d`)**
+> Several commands (`sf`, `ds`, `unblock`) use a depth parameter to limit how far the tool "digs" into your folders:
+> - **`-d 0`**: Current directory only (no subfolders).
+> - **`-d 1`**: Current directory + immediate subfolders.
+> - **`-d 2`**: Current directory + subfolders + their subfolders.
+> - **No flag**: Performs **Full Recursion** (searches every file and folder in the entire tree).
 
 ---
 
 ## 🐙 Git Workflow
 
-### `gst`, `gpl`, `gdf`, `glo`
-Shorthands for common Git operations. Running these without arguments will show curated popular flags.
+### Git Shorthands
+These commands are high-speed wrappers around standard Git commands. They pass all arguments directly to Git, meaning you can use any flag or parameter supported by the underlying command.
 
+- **`gst`** [`git status`]: View the state of your working directory.
+- **`gpl`** [`git pull`]: Fetch from and integrate with another repository or a local branch.
+- **`gdf`** [`git diff`]: Show changes between commits, commit and working tree, etc.
+- **`glo`** [`git log`]: Show commit logs. (Default: `--oneline --graph --decorate -n 10`)
+- **`gco`** [`git checkout`]: Switch branches or restore working tree files.
+
+**Advanced Usage Examples**:
 ```powershell
-# Git Status (Recommended Args: -s -b)
-gst
-
-# Git Pull (Recommended Args: --rebase | --autostash)
-gpl
-
-# Git Diff (Recommended Args: --staged | --stat)
-gdf
-
-# Git Log (Recommended Args: --oneline --graph --decorate)
-glo
+gst -s                # Short status format
+gco -b "feat/api"     # Create and switch to new branch
+gdf --cached          # View changes staged for commit
+glo -n 50             # View last 50 commits instead of 10
+gpl --rebase          # Pull and rebase (recommended)
 ```
 
-### `gco`
-Git Checkout shorthand.
+### `gup` (Sync-GitBranch)
+- **Purpose**: Full sync: adds all changes, commits, pulls, and pushes.
+- **Parameters**:
+  - `Message`: (Mandatory) The commit message.
+- **Usage**:
+  ```powershell
+  gup "Fixed mobile responsiveness"
+  ```
 
-```powershell
-# Checkout a branch
-gco my-feature
+### `gnew` (Initialize-GitRepo)
+- **Purpose**: Initializes local repo and publishes to a remote URL.
+- **Parameters**:
+  - `RepoUrl`: (Mandatory) Remote Git URL.
+- **Usage**:
+  ```powershell
+  gnew "https://github.com/user/project.git"
+  ```
 
-# Checkout and create new branch
-gco -b hotfix-123
+### `gcl` (Copy-GitRepo)
+- **Purpose**: Clones a repository and **automatically** enters the folder.
+- **Parameters**:
+  - `Url`: (Mandatory) The Git URL to clone.
+  - `GitArgs`: (Optional) Additional git clone arguments.
+- **Usage**:
+  ```powershell
+  gcl "https://github.com/user/project.git" --depth 1
+  ```
 
-# Switch back to previous branch
-gco -
-```
-
-### `gup`
-Auto-syncs the current branch with origin. It adds all changes, commits with a message, pulls from origin with rebase, and pushes.
-
-```powershell
-# Sync changes with a message
-gup "feat: implement user authentication"
-```
-
-### `gnew`
-Initializes a new Git repository, performs the initial commit on `main`, adds a remote origin, and pushes.
-
-```powershell
-# Initialize and push to a new repo
-gnew https://github.com/user/my-new-repo.git
-```
-
-### `gcl`
-Clones a repository and automatically enters its directory. It supports a "Jump In" feature that handles standard and custom folder naming.
-
-```powershell
-# Standard clone and enter
-gcl https://github.com/user/repo.git
-
-# Clone a specific branch with curated depth
-gcl https://github.com/user/repo.git -b main --depth 1
-
-# Clone into a custom folder
-gcl https://github.com/user/repo.git my-folder
-```
-
-### `grem`
-Safely removes the `.git` folder from the current directory to stop tracking.
-
-```powershell
-# Remove Git tracking
-grem
-```
-
----
-
-## 🌐 Network Utilities
-
-### `mac`
-Retrieves IP and MAC addresses for the local PC and its default gateway.
-
-```powershell
-# Get network details (IP and MAC)
-mac
-```
-
-### `myip`
-Fetches your public IP address and automatically copies it to the clipboard.
-
-```powershell
-# Get public IP
-myip
-```
-
-### `share`
-Instantly turns the current directory into a web server with a modern GUI for uploading and downloading files.
-
-```powershell
-# Start file sharing (Default Port: 5000)
-share
-
-# Start on a custom port
-share 8081
-```
+### `grem` (Remove-GitRepo)
+- **Purpose**: Deletes the `.git` tracking folder.
+- **Usage**:
+  ```powershell
+  grem
+  ```
 
 ---
 
 ## ⚙️ System & Process
 
-### `kproc`
-Stops processes based on their name or the port they are listening on.
+### `kp` (Stop-ProcessByNameOrPort)
+- **Purpose**: Kills processes by **Port** or **Name**. Automatically detects the target type.
+- **Parameters**:
+  - `Identifier`: (Mandatory, **Positional 1**) A Port number (e.g., `3000`) or a Process Name (e.g., `node`).
+- **Usage**:
+  ```powershell
+  kp 3000           # Detects number -> Kills port 3000
+  kp node           # Detects string -> Kills processes matching "node"
+  ```
 
-```powershell
-# Kill process listening on port 8080
-kproc 8080
+### `wh` (Get-CommandSource)
+- **Purpose**: Shows the source path or definition of **any** command (Function, Alias, or external Tool).
+- **Parameters**:
+  - `Name`: (Mandatory, **Positional 1**) Command name.
+  - `All` [**-a**]: (Switch) Show all instances.
+- **Usage**:
+  ```powershell
+  wh node           # Shows path to external tool
+  ```
 
-# Kill process by name (wildcard supported)
-kproc "node"
-```
+### `clh` (Clear-TerminalHistory)
+- **Purpose**: Wipes session and persistent history.
+- **Usage**:
+  ```powershell
+  clh
+  ```
 
-### `which`
-Finds the source (file path or module) of a command.
+### `update` (Update-SystemPackages)
+- **Purpose**: Interactive `winget upgrade` wrapper with visual diffing.
+- **Usage**:
+  ```powershell
+  update
+  ```
 
-```powershell
-# Find where python is located (Recommended Args: -All)
-which python
+### `sync` (Update-ProfileDependencies)
+- **Purpose**: Updates `oh-my-posh`, `dufs`, and profile modules.
+- **Usage**:
+  ```powershell
+  sync
+  ```
 
-# See all sources if multiple exist
-which -All node
-```
+---
 
-### `clh`
-Clears the terminal history both in the current session and in the persistent history file.
+## 🌐 Network & Server
 
-```powershell
-# Purge all history
-clh
-```
+### `ip` (Get-PublicIP)
+- **Purpose**: Public IP to clipboard.
+- **Usage**:
+  ```powershell
+  ip
+  ```
 
-### `update`
-Checks for and installs application updates via Winget using an interactive selection menu.
+### `mac` (Get-NetworkInfo)
+- **Purpose**: Summary of local network details.
+- **Usage**:
+  ```powershell
+  mac
+  ```
 
-```powershell
-# Start update manager
-update
-```
-
-### `sync`
-Synchronizes and updates the core internal dependencies used by this profile (Modules and Binary tools).
-
-```powershell
-# Update profile dependencies
-sync
-```
+### `srv` (Start-FileShare)
+- **Purpose**: Launches `dufs` file server. Defaults to Read-Only.
+- **Parameters**:
+  - `Port`: (Optional, Default: `5000`) Server port.
+  - `Full` [**-f**]: (Switch) Enables Write/Delete permissions.
+- **Usage**:
+  ```powershell
+  srv                # Safe Mode
+  srv 8080 -f        # Admin Mode on port 8080
+  ```
 
 ---
 
 ## 🛠 Profile Management
 
-### `pro`
-Opens your PowerShell profile in Notepad for quick editing.
+### `ep` (Edit-Profile)
+- **Purpose**: Open profile in Notepad.
+- **Usage**:
+  ```powershell
+  ep
+  ```
 
-```powershell
-# Edit profile
-pro
-```
+### `rl` (Update-Profile)
+- **Purpose**: Reload profile instantly.
+- **Usage**:
+  ```powershell
+  rl
+  ```
 
-### `ref`
-Reloads the PowerShell profile to apply changes without restarting the terminal.
+### `hh` (Show-ProfileHelp)
+- **Purpose**: Show terminal cheat sheet.
+- **Usage**:
+  ```powershell
+  hh
+  ```
 
-```powershell
-# Refresh environment
-ref
-```
-
-### `menu`
-Displays an interactive command cheat sheet directly in your terminal.
-
-```powershell
-# Show help menu
-menu
-```
+---
