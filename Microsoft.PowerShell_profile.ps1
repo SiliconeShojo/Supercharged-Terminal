@@ -157,6 +157,7 @@ function Get-DirectorySize {
             Path        = $fullPath
             Recurse     = $true
             File        = $true
+            Force       = $true
             ErrorAction = "SilentlyContinue"
         }
         if ($MaxDepth -gt 0) { $params["Depth"] = $MaxDepth }
